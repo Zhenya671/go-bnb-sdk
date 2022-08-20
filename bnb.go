@@ -1,46 +1,21 @@
 package go_bnb_sdk
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
+	"github.com/Zhenya671/go-bnb-sdk/handlers"
+	_ "github.com/Zhenya671/go-bnb-sdk/handlers"
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 )
 
 const (
-	apiURL = "https://www.nbrb.by/api/exrates/currencies/"
+	defaultApiURL = "https://www.nbrb.by/api/exrates/rates/"
 )
 
-var ErrFailedAPICall = errors.New("bad response from BookBeta API")
-
-type Currency struct {
-	CurID           int    `json:"Cur_ID"`
-	CurParentID     int    `json:"Cur_ParentID"`
-	CurCode         string `json:"Cur_Code"`
-	CurAbbreviation string `json:"Cur_Abbreviation"`
-	CurName         string `json:"Cur_Name"`
-	CurNameBel      string `json:"Cur_Name_Bel"`
-	CurNameEng      string `json:"Cur_Name_Eng"`
-	CurQuotName     string `json:"Cur_QuotName"`
-	CurQuotNameBel  string `json:"Cur_QuotName_Bel"`
-	CurQuotNameEng  string `json:"Cur_QuotName_Eng"`
-	CurNameMulti    string `json:"Cur_NameMulti"`
-	CurNameBelMulti string `json:"Cur_Name_BelMulti"`
-	CurNameEngMulti string `json:"Cur_Name_EngMulti"`
-	CurScale        int    `json:"Cur_Scale"`
-	CurPeriodicity  int    `json:"Cur_Periodicity"`
-	CurDateStart    string `json:"Cur_DateStart"`
-	CurDateEnd      string `json:"Cur_DateEnd"`
-}
-
-func GetCurrentCurrency(currentCurrencyID int) (map[string]interface{}, error) {
-	id := strconv.Itoa(currentCurrencyID)
-	res, err := http.Get(apiURL + id)
+func GetCurrentCurrency(currentCurrencyID int) ([]byte, error) {
+	res, err := doHttpGet(currentCurrencyID)
 	if err != nil {
-		log.Fatal(ErrFailedAPICall)
+		log.Fatal("can't do request")
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -50,15 +25,13 @@ func GetCurrentCurrency(currentCurrencyID int) (map[string]interface{}, error) {
 		}
 	}(res.Body)
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d - %s: %w", res.StatusCode, res.Status, ErrFailedAPICall)
-	}
+	return gotData(res), nil
+}
 
-	var gotCurrency map[string]interface{}
-	err = json.NewDecoder(res.Body).Decode(&gotCurrency)
-	if err != nil {
-		return nil, fmt.Errorf("could not decode json: %s\n", err)
-	}
+func gotData(res *http.Response) []byte {
+	return handlers.ApiResponseToBytes(res)
+}
 
-	return gotCurrency, nil
+func doHttpGet(currentCurrencyID int) (*http.Response, error) {
+	return http.Get(handlers.CurrentCurrencyURL(defaultApiURL, currentCurrencyID))
 }
